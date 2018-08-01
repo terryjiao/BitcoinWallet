@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: io.github.novacrypto:BIP39:0.1.9">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/Could not find io.github.novacrypto:BIP39:0.1.9." />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.novacrypto/BIP39/0.1.9/81d2d788f7aeef62ffd709b920a164ec16ea532f/BIP39-0.1.9.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.novacrypto/BIP39/0.1.9/9dba805fa4202c43542795fe3606bb46dd10f227/BIP39-0.1.9-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

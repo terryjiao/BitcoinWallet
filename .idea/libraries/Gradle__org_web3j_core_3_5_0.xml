@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: org.web3j:core:3.5.0">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.web3j/core/3.5.0/c3a518b52d618f2d7e3102064d871ebfbc7b319d/core-3.5.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.web3j/core/3.5.0/ad2be87aba2855b222f46f69c74307657a85c776/core-3.5.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
