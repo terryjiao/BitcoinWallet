@@ -11,6 +11,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import io.github.novacrypto.bip32.ExtendedPrivateKey;
@@ -31,12 +33,15 @@ public class Main {
                     "1001", "1010", "1011", "1100", "1101", "1110", "1111"};
 
     private static String[] wordlist = new String[2048];
+    private static GenerateKeyStore ks = new GenerateKeyStore();
+    private static String password = "password";
 
     public static void main(String[] args) throws InvalidKeySpecException, NoSuchAlgorithmException {
         String entropy = createEntropy();
         String mnemonic = generateMnemonic(entropy);
         System.out.println(mnemonic);
-        generateKeyPairs(mnemonic);
+        List<String> params = generateKeyPairs(mnemonic);
+        genKeyStore(params.get(0), params.get(2), password);
     }
 
     public static String createEntropy() {
@@ -77,7 +82,7 @@ public class Main {
         }
 
         //请修改文件的绝对路径
-        String path = "/Users/terry/Documents/GitHub/BitcoinDemo/src/main/java/wordlist/english";
+        String path = "/Users/terry/Documents/GitHub/my/BitcoinDemo/src/main/java/english";
         readTextFile(path);
         String mnemonic = "";
 
@@ -113,7 +118,7 @@ public class Main {
         }
     }
 
-    private static void generateKeyPairs(String mnemonic) throws InvalidKeySpecException, NoSuchAlgorithmException {
+    private static List<String> generateKeyPairs(String mnemonic) throws InvalidKeySpecException, NoSuchAlgorithmException {
 
         // 1. we just need eth wallet for now
         AddressIndex addressIndex = BIP44.m().purpose44().coinType(60).account(0).external().address(0);
@@ -136,11 +141,15 @@ public class Main {
         String privateKey = childPrivateKey.getPrivateKey();
         String publicKey = childPrivateKey.neuter().getPublicKey();
         String address = Keys.getAddress(keyPair);
+        List<String> returnList = new ArrayList<>();
 
         System.out.println("privateKey:" + privateKey);
         System.out.println("publicKey:" + publicKey);
         System.out.println("address:" + address);
-        StringBuilder sb = new StringBuilder();
+        returnList.add(privateKey);
+        returnList.add(publicKey);
+        returnList.add(address);
+        return returnList;
     }
 
 
@@ -170,6 +179,17 @@ public class Main {
                 return string.getBytes("UTF-8");
             }
         });
+    }
+
+    private static void genKeyStore(String privateKey, String address, String password){
+        ks.genkey(address, password);
+        try {
+            Thread.sleep(1000); //1000 毫秒，也就是1秒.
+        } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        ks.protectPrivateKey(privateKey, password);
+        ks.getPrivateKey(password);
     }
 }
 
