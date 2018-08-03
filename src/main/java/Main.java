@@ -17,7 +17,6 @@ import java.util.UUID;
 
 import io.github.novacrypto.bip32.ExtendedPrivateKey;
 import io.github.novacrypto.bip32.networks.Bitcoin;
-import io.github.novacrypto.bip39.SeedCalculator;
 import io.github.novacrypto.bip44.AddressIndex;
 import io.github.novacrypto.bip44.BIP44;
 import org.web3j.crypto.ECKeyPair;
@@ -41,7 +40,13 @@ public class Main {
         String mnemonic = generateMnemonic(entropy);
         System.out.println(mnemonic);
         List<String> params = generateKeyPairs(mnemonic);
-        genKeyStore(params.get(0), params.get(2), password);
+        genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
+        try {
+            Thread.sleep(1000); //1000 毫秒，也就是1秒.
+        } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        genKeyStoreByMnemonic(mnemonic, params.get(2), password);
     }
 
     public static String createEntropy() {
@@ -181,15 +186,26 @@ public class Main {
         });
     }
 
-    private static void genKeyStore(String privateKey, String address, String password){
-        ks.genkey(address, password);
+    private static void genKeyStoreByPrivateKey(String ksContent, String ksName, String ksPwd){
+        ks.genKeyByPrivateKey(ksName, ksPwd);
         try {
             Thread.sleep(1000); //1000 毫秒，也就是1秒.
         } catch(InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        ks.protectPrivateKey(privateKey, password);
-        ks.getPrivateKey(password);
+        ks.protectContent(ksContent, ksPwd);
+        ks.getContent(ksPwd);
+    }
+
+    private static void genKeyStoreByMnemonic(String ksContent, String ksName, String ksPwd){
+        ks.genKeyByMnemonic(ksName, ksPwd);
+        try {
+            Thread.sleep(1000); //1000 毫秒，也就是1秒.
+        } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        ks.protectContent(ksContent, ksPwd);
+        ks.getContent(ksPwd);
     }
 }
 

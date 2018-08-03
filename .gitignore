@@ -8,3 +8,5 @@
 /captures
 /out
 .externalNativeBuild
+/keystore
+*/.DS_Store

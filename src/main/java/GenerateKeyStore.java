@@ -37,8 +37,8 @@ public class GenerateKeyStore {
     /**
      * 生成密钥
      */
-    public void genkey(String address, String password) {
-        fileName = "/Users/terry/Documents/GitHub/my/BitcoinDemo/keystore/" + address + ".keystore";
+    public void genKeyByPrivateKey(String address, String password) {
+        fileName = "/Users/terry/Documents/GitHub/BitcoinWallet/keystore/" + address + "_PrivateKey" + ".keystore";
         String[] arstringCommand = new String[]{
 
                 "keytool",
@@ -65,8 +65,38 @@ public class GenerateKeyStore {
         execCommand(arstringCommand);
     }
 
+    /**
+     *
+     */
+    public void genKeyByMnemonic(String address, String password) {
+        fileName = "/Users/terry/Documents/GitHub/BitcoinWallet/keystore/" + address + "_Mnemonic" + ".keystore";
+        String[] arstringCommand = new String[]{
 
-    public void protectPrivateKey(String privateKey, String password) {
+                "keytool",
+                "-genkey", // -genkey表示生成密钥
+                "-validity", // -validity指定证书有效期(单位：天)，这里是36000天
+                "36500",
+                "-keysize",//     指定密钥长度
+                "1024",
+                "-alias", // -alias指定别名，这里是ss
+                "Mnemonic",
+                "-keyalg", // -keyalg 指定密钥的算法 (如 RSA DSA（如果不指定默认采用DSA）)
+                "RSA",
+                "-keystore", // -keystore指定存储位置，这里是/Users/terry/Documents/GitHub/my/BitcoinDemo/keystore/demo.keystore
+                fileName,
+                "-dname",// CN=(名字与姓氏), OU=(组织单位名称), O=(组织名称), L=(城市或区域名称),
+                // ST=(州或省份名称), C=(单位的两字母国家代码)"
+                "CN=(user), OU=(imbuff), O=(imbuff), L=(SH), ST=(SH), C=(CN)",
+                "-storepass", // 指定密钥库的密码(获取keystore信息所需的密码)
+                password,
+                "-keypass",// 指定别名条目的密码(私钥的密码)
+                password,
+                "-v"// -v 显示密钥库中的证书详细信息
+        };
+        execCommand(arstringCommand);
+    }
+
+    public void protectContent(String privateKey, String password) {
         FileInputStream fis = null;
         OutputStream os = null;
         try {
@@ -74,7 +104,7 @@ public class GenerateKeyStore {
             fis = new FileInputStream(fileName);
             // 生成证书的类型为jceks
             KeyStore keyStore = KeyStore.getInstance("jceks");
-            // 该密钥库的密码"888999",storepass指定密钥库的密码(获取keystore信息所需的密码)
+            // 该密钥库的密码,storepass指定密钥库的密码(获取keystore信息所需的密码)
             String storepass = password;
             keyStore.load(fis, storepass.toCharArray());
             fis.close();
@@ -108,7 +138,7 @@ public class GenerateKeyStore {
         }
     }
 
-    public String getPrivateKey(String password) {
+    public void getContent(String password) {
         String storepass = password;
         try {
             FileInputStream fis = null;
@@ -125,19 +155,17 @@ public class GenerateKeyStore {
             //key.getEncoded()返回基本编码格式的密钥，如果此密钥不支持编码，则返回 null。
             byte[] bt = key.getEncoded();
             StringBuilder privateKey = new StringBuilder();
-            System.out.println("从证书中获取的解密密码是：");
+            System.out.println("从证书中获取的内容是：");
             for (int i = 0; i < bt.length; i++) {
                 char ch = (char) bt[i];
                 privateKey.append(ch);
                 System.out.print(ch);
             }
 
-            return privateKey.toString();
         } catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
             e.printStackTrace();
             System.out.println("wrong password !");
         }
-        return "";
     }
 
 
