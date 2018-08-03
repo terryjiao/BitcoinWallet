@@ -1,11 +1,14 @@
 
 
+import io.github.novacrypto.base58.Base58;
+import io.github.novacrypto.hashing.Sha256;
 import io.github.novacrypto.toruntime.CheckedExceptionToRuntime;
 import org.apache.commons.codec.binary.*;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.io.*;
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -19,6 +22,7 @@ import io.github.novacrypto.bip32.ExtendedPrivateKey;
 import io.github.novacrypto.bip32.networks.Bitcoin;
 import io.github.novacrypto.bip44.AddressIndex;
 import io.github.novacrypto.bip44.BIP44;
+import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 
@@ -40,13 +44,13 @@ public class Main {
         String mnemonic = generateMnemonic(entropy);
         System.out.println(mnemonic);
         List<String> params = generateKeyPairs(mnemonic);
-        genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
+        //genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
         try {
             Thread.sleep(1000); //1000 毫秒，也就是1秒.
-        } catch(InterruptedException ex) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        genKeyStoreByMnemonic(mnemonic, params.get(2), password);
+        //genKeyStoreByMnemonic(mnemonic, params.get(2), password);
     }
 
     public static String createEntropy() {
@@ -63,15 +67,11 @@ public class Main {
         System.out.println(entropy);
 
         //generate sha-256 from entropy
-        MessageDigest messageDigest;
         String encodeStr = "";
-        try {
-            messageDigest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = messageDigest.digest(entropy.getBytes("UTF-8"));
-            encodeStr = String.valueOf(Hex.encodeHex(hash));
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
+
+        byte[] hash = Sha256.sha256(hexStringToByteArray(entropy));
+        System.out.println(String.valueOf(Hex.encodeHex(hash)));
+        encodeStr = String.valueOf(Hex.encodeHex(hash));
         System.out.println(encodeStr);
         char firstSHA = encodeStr.charAt(0);
         String new_entropy = entropy + firstSHA;
@@ -126,31 +126,68 @@ public class Main {
     private static List<String> generateKeyPairs(String mnemonic) throws InvalidKeySpecException, NoSuchAlgorithmException {
 
         // 1. we just need eth wallet for now
-        AddressIndex addressIndex = BIP44.m().purpose44().coinType(60).account(0).external().address(0);
+        AddressIndex addressIndex = BIP44.m().purpose44().coinType(0).account(0).external().address(0);
         // 2. calculate seed from mnemonics , then get master/root key ; Note that the bip39 passphrase we set "" for common
         String seed;
         String salt = "mnemonic";
-        seed = getSeed(mnemonic, salt);
+        seed = getSeed("hockey crouch sign easily reflect this orange maple eyebrow popular spray smile", salt);
         System.out.println(seed);
 
 
         ExtendedPrivateKey rootKey = ExtendedPrivateKey.fromSeed(fromHex(seed), Bitcoin.MAIN_NET);
+        String extendedBase58 = rootKey.extendedBase58();
         // 3. get child private key deriving from master/root key
         ExtendedPrivateKey childPrivateKey = rootKey.derive(addressIndex, AddressIndex.DERIVATION);
+        String childExtendedBase58 = childPrivateKey.extendedBase58();
 
         // 4. get key pair
         byte[] privateKeyBytes = childPrivateKey.getKey(); //child private key
         ECKeyPair keyPair = ECKeyPair.create(privateKeyBytes);
 
-        // we 've gotten what we need
+        /**
+         * 生成比特币私钥
+         */
+        // 获取比特币私钥
         String privateKey = childPrivateKey.getPrivateKey();
-        String publicKey = childPrivateKey.neuter().getPublicKey();
-        String address = Keys.getAddress(keyPair);
-        List<String> returnList = new ArrayList<>();
+        // 加80前缀和01后缀
+        String rk = "80" + privateKey + "01";
+        // 生成校验和
+        byte[] checksum = Sha256.sha256(hexStringToByteArray(rk));
+        checksum = Sha256.sha256(checksum);
+        // 取校验和前4位（32bits）
+        String end = String.valueOf(Hex.encodeHex(checksum)).substring(0, 8);
+        rk = rk + end;
+        // 进行base58编码
+        String privateK = Base58.base58Encode(hexStringToByteArray(rk));
 
-        System.out.println("privateKey:" + privateKey);
+        /**
+         * 生成比特币地址
+         */
+        // 获取比特币公钥
+        String publicKey = childPrivateKey.neuter().getPublicKey();
+        // 对公钥进行一次sha256
+        byte[] pk256 = hexStringToByteArray(publicKey);
+        pk256 = Sha256.sha256(pk256);
+        // 进行ripe160加密（20位）
+        RIPEMD160Digest digest = new RIPEMD160Digest();
+        digest.update(pk256, 0, pk256.length);
+        byte[] ripemd160Bytes = new byte[digest.getDigestSize()];
+        digest.doFinal(ripemd160Bytes, 0);
+        // 加00前缀（比特币主网）变成21位
+        byte[] extendedRipemd160Bytes = hexStringToByteArray("00" + String.valueOf(Hex.encodeHex(ripemd160Bytes)));
+        // 计算校验和
+        checksum = Sha256.sha256(extendedRipemd160Bytes);
+        checksum = Sha256.sha256(checksum);
+        // 加校验和前4位，变成25位
+        String pk = String.valueOf(Hex.encodeHex(extendedRipemd160Bytes)) + String.valueOf(Hex.encodeHex(checksum)).substring(0, 8);
+        // base58加密
+        String address = Base58.base58Encode(hexStringToByteArray(pk));
+        //System.out.println("privateKey:" + privateKey);
+        //String address = Keys.getAddress(keyPair);
+        System.out.println("privateKey:" + privateK);
         System.out.println("publicKey:" + publicKey);
         System.out.println("address:" + address);
+        List<String> returnList = new ArrayList<>();
         returnList.add(privateKey);
         returnList.add(publicKey);
         returnList.add(address);
@@ -177,31 +214,41 @@ public class Main {
 
     }
 
-    private static byte[] getUtf8Bytes(final String string) {
+    private static byte[] getUtf8Bytes(final String str) {
         return toRuntime(new CheckedExceptionToRuntime.Func<byte[]>() {
             @Override
             public byte[] run() throws Exception {
-                return string.getBytes("UTF-8");
+                return str.getBytes("UTF-8");
             }
         });
     }
 
-    private static void genKeyStoreByPrivateKey(String ksContent, String ksName, String ksPwd){
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i + 1), 16));
+        }
+        return data;
+    }
+
+    private static void genKeyStoreByPrivateKey(String ksContent, String ksName, String ksPwd) {
         ks.genKeyByPrivateKey(ksName, ksPwd);
         try {
             Thread.sleep(1000); //1000 毫秒，也就是1秒.
-        } catch(InterruptedException ex) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
         ks.protectContent(ksContent, ksPwd);
         ks.getContent(ksPwd);
     }
 
-    private static void genKeyStoreByMnemonic(String ksContent, String ksName, String ksPwd){
+    private static void genKeyStoreByMnemonic(String ksContent, String ksName, String ksPwd) {
         ks.genKeyByMnemonic(ksName, ksPwd);
         try {
             Thread.sleep(1000); //1000 毫秒，也就是1秒.
-        } catch(InterruptedException ex) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
         ks.protectContent(ksContent, ksPwd);
