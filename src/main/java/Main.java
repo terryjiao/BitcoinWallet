@@ -131,7 +131,7 @@ public class Main {
         // 2. calculate seed from mnemonics , then get master/root key ; Note that the bip39 passphrase we set "" for common
         String seed;
         String salt = "mnemonic";
-        seed = getSeed("hockey crouch sign easily reflect this orange maple eyebrow popular spray smile", salt);
+        seed = getSeed(mnemonic, salt);
         System.out.println(seed);
 
 
