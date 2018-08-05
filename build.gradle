@@ -16,4 +16,5 @@ dependencies {
     compile 'io.github.novacrypto:BIP44:0.0.3'
     compile 'com.lhalcyon:bip32:1.0.0'
     compile ('org.web3j:core:3.5.0')
+    compile group: 'org.bitcoinj', name: 'bitcoinj-core', version: '0.14'
 }

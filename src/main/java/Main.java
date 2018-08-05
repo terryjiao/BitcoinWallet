@@ -1,6 +1,7 @@
 
 
 import io.github.novacrypto.base58.Base58;
+import io.github.novacrypto.hashing.Hash160;
 import io.github.novacrypto.hashing.Sha256;
 import io.github.novacrypto.toruntime.CheckedExceptionToRuntime;
 import org.apache.commons.codec.binary.*;
@@ -22,6 +23,8 @@ import io.github.novacrypto.bip32.ExtendedPrivateKey;
 import io.github.novacrypto.bip32.networks.Bitcoin;
 import io.github.novacrypto.bip44.AddressIndex;
 import io.github.novacrypto.bip44.BIP44;
+import org.bitcoinj.core.Sha256Hash;
+import org.bitcoinj.core.Utils;
 import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
@@ -44,13 +47,13 @@ public class Main {
         String mnemonic = generateMnemonic(entropy);
         System.out.println(mnemonic);
         List<String> params = generateKeyPairs(mnemonic);
-        //genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
+        genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
         try {
-            Thread.sleep(1000); //1000 毫秒，也就是1秒.
+            Thread.sleep(1000); //1000 ms
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        //genKeyStoreByMnemonic(mnemonic, params.get(2), password);
+        genKeyStoreByMnemonic(mnemonic, params.get(2), password);
     }
 
     public static String createEntropy() {
@@ -70,7 +73,6 @@ public class Main {
         String encodeStr = "";
 
         byte[] hash = Sha256.sha256(hexStringToByteArray(entropy));
-        System.out.println(String.valueOf(Hex.encodeHex(hash)));
         encodeStr = String.valueOf(Hex.encodeHex(hash));
         System.out.println(encodeStr);
         char firstSHA = encodeStr.charAt(0);
@@ -79,7 +81,6 @@ public class Main {
         for (int i = 0; i < new_entropy.length(); i++) {
             bin_entropy += dict[Integer.parseInt(new_entropy.substring(i, i + 1), 16)];
         }
-        System.out.println(bin_entropy);
         String[] segments = new String[12];
         //hardcode
         for (int i = 0; i <= 11; i++) {
@@ -135,18 +136,44 @@ public class Main {
 
 
         ExtendedPrivateKey rootKey = ExtendedPrivateKey.fromSeed(fromHex(seed), Bitcoin.MAIN_NET);
-        String extendedBase58 = rootKey.extendedBase58();
         // 3. get child private key deriving from master/root key
         ExtendedPrivateKey childPrivateKey = rootKey.derive(addressIndex, AddressIndex.DERIVATION);
-        String childExtendedBase58 = childPrivateKey.extendedBase58();
 
         // 4. get key pair
         byte[] privateKeyBytes = childPrivateKey.getKey(); //child private key
         ECKeyPair keyPair = ECKeyPair.create(privateKeyBytes);
 
-        /**
-         * 生成比特币私钥
-         */
+        List<String> returnList = EthAddress(childPrivateKey, keyPair);
+        bitcoinAddress(childPrivateKey);
+        return returnList;
+    }
+
+    /**
+     * generate ETH privatekey, publickey and address.
+     * @param childPrivateKey
+     * @param keyPair
+     */
+    private static List<String> EthAddress(ExtendedPrivateKey childPrivateKey, ECKeyPair keyPair){
+        String privateKey = childPrivateKey.getPrivateKey();
+        String publicKey = childPrivateKey.neuter().getPublicKey();
+        String address = Keys.getAddress(keyPair);
+
+        System.out.println("ETH privateKey:" + privateKey);
+        System.out.println("ETH publicKey:" + publicKey);
+        System.out.println("ETH address:" + address);
+
+        List<String> returnList = new ArrayList<>();
+        returnList.add(privateKey);
+        returnList.add(publicKey);
+        returnList.add(address);
+        return returnList;
+    }
+
+    /**
+     * generate bitcoin privatekey, publickey and address.
+     * @param childPrivateKey
+     */
+    private static void bitcoinAddress(ExtendedPrivateKey childPrivateKey){
         // 获取比特币私钥
         String privateKey = childPrivateKey.getPrivateKey();
         // 加80前缀和01后缀
@@ -160,9 +187,7 @@ public class Main {
         // 进行base58编码
         String privateK = Base58.base58Encode(hexStringToByteArray(rk));
 
-        /**
-         * 生成比特币地址
-         */
+
         // 获取比特币公钥
         String publicKey = childPrivateKey.neuter().getPublicKey();
         // 对公钥进行一次sha256
@@ -182,18 +207,13 @@ public class Main {
         String pk = String.valueOf(Hex.encodeHex(extendedRipemd160Bytes)) + String.valueOf(Hex.encodeHex(checksum)).substring(0, 8);
         // base58加密
         String address = Base58.base58Encode(hexStringToByteArray(pk));
-        //System.out.println("privateKey:" + privateKey);
-        //String address = Keys.getAddress(keyPair);
-        System.out.println("privateKey:" + privateK);
-        System.out.println("publicKey:" + publicKey);
-        System.out.println("address:" + address);
-        List<String> returnList = new ArrayList<>();
-        returnList.add(privateKey);
-        returnList.add(publicKey);
-        returnList.add(address);
-        return returnList;
-    }
 
+        System.out.println("bitcoin privateKey:" + privateK);
+        System.out.println("bitcoin publicKey:" + publicKey);
+        System.out.println("bitcoin address:" + address);
+
+        generateSegwitAddress(address);
+    }
 
     public static String getSeed(String mnemonic, String salt) throws NoSuchAlgorithmException,
             InvalidKeySpecException {
@@ -203,6 +223,30 @@ public class Main {
         KeySpec spec = new PBEKeySpec(chars, salt_, 2048, 512);
         SecretKeyFactory f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512");
         return String.valueOf(Hex.encodeHex(f.generateSecret(spec).getEncoded()));
+    }
+
+    private static void generateSegwitAddress(String address){
+        byte[] decoded = Utils.parseAsHexOrBase58(address);
+        // We should throw off header byte that is 0 for Bitcoin (Main)
+        byte[] pureBytes = new byte[20];
+        System.arraycopy(decoded, 1, pureBytes, 0, 20);
+        // Than we should prepend the following bytes:
+        byte[] scriptSig = new byte[pureBytes.length + 2];
+        scriptSig[0] = 0x00;
+        scriptSig[1] = 0x14;
+        System.arraycopy(pureBytes, 0, scriptSig, 2, pureBytes.length);
+        byte[] addressBytes = org.bitcoinj.core.Utils.sha256hash160(scriptSig);
+        // Here are the address bytes
+        byte[] readyForAddress = new byte[addressBytes.length + 1 + 4];
+        // prepending p2sh header:
+        readyForAddress[0] = (byte) 5;
+        System.arraycopy(addressBytes, 0, readyForAddress, 1, addressBytes.length);
+        // But we should also append check sum:
+        byte[] checkSum = Sha256Hash.hashTwice(readyForAddress, 0, addressBytes.length + 1);
+        System.arraycopy(checkSum, 0, readyForAddress, addressBytes.length + 1, 4);
+        // To get the final address:
+        String segwitAddress = Base58.base58Encode(readyForAddress);
+        System.out.println("segwit address:" + segwitAddress);
     }
 
     private static byte[] fromHex(String hex) {
