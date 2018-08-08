@@ -1,7 +1,6 @@
 
 
 import io.github.novacrypto.base58.Base58;
-import io.github.novacrypto.hashing.Hash160;
 import io.github.novacrypto.hashing.Sha256;
 import io.github.novacrypto.toruntime.CheckedExceptionToRuntime;
 import org.apache.commons.codec.binary.*;
@@ -9,15 +8,14 @@ import org.apache.commons.codec.binary.*;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.io.*;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import io.github.novacrypto.bip32.ExtendedPrivateKey;
 import io.github.novacrypto.bip32.networks.Bitcoin;
@@ -26,8 +24,7 @@ import io.github.novacrypto.bip44.BIP44;
 import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.core.Utils;
 import org.bouncycastle.crypto.digests.RIPEMD160Digest;
-import org.web3j.crypto.ECKeyPair;
-import org.web3j.crypto.Keys;
+import org.web3j.crypto.*;
 
 import static io.github.novacrypto.toruntime.CheckedExceptionToRuntime.toRuntime;
 
@@ -41,19 +38,26 @@ public class Main {
     private static String[] wordlist = new String[2048];
     private static GenerateKeyStore ks = new GenerateKeyStore();
     private static String password = "password";
+    private static WalletFile walletFile;
 
-    public static void main(String[] args) throws InvalidKeySpecException, NoSuchAlgorithmException {
+    public static void main(String[] args) throws Exception {
         String entropy = createEntropy();
         String mnemonic = generateMnemonic(entropy);
         System.out.println(mnemonic);
         List<String> params = generateKeyPairs(mnemonic);
-        genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
+        //genKeyStoreByPrivateKey(params.get(0), params.get(2), password);
         try {
             Thread.sleep(1000); //1000 ms
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        genKeyStoreByMnemonic(mnemonic, params.get(2), password);
+        //genKeyStoreByMnemonic(mnemonic, params.get(2), password);
+        new SendTransaction().getBalance("0x915489e6a7caf14afc874d678879f18fd0e3a684");
+        new SendTransaction().getBalance("0x26857844be5fea27bd48aedced42bb8727501779");
+        BigDecimal amount = BigDecimal.valueOf(0.01);
+        sendTransaction("0x" + params.get(2), "0x26857844be5fea27bd48aedced42bb8727501779", amount, password, walletFile);
+        new SendTransaction().getBalance("0x915489e6a7caf14afc874d678879f18fd0e3a684");
+        new SendTransaction().getBalance("0x26857844be5fea27bd48aedced42bb8727501779");
     }
 
     public static String createEntropy() {
@@ -124,36 +128,43 @@ public class Main {
         }
     }
 
-    private static List<String> generateKeyPairs(String mnemonic) throws InvalidKeySpecException, NoSuchAlgorithmException {
+    private static List<String> generateKeyPairs(String mnemonic) throws InvalidKeySpecException, NoSuchAlgorithmException, CipherException {
 
         // 1. we just need eth wallet for now
-        AddressIndex addressIndex = BIP44.m().purpose44().coinType(0).account(0).external().address(0);
+        AddressIndex ethAddressIndex = BIP44.m().purpose44().coinType(60).account(0).external().address(0);
+        AddressIndex btcAddressIndex = BIP44.m().purpose44().coinType(0).account(0).external().address(0);
         // 2. calculate seed from mnemonics , then get master/root key ; Note that the bip39 passphrase we set "" for common
         String seed;
         String salt = "mnemonic";
-        seed = getSeed(mnemonic, salt);
+        seed = getSeed("head budget daring umbrella misery monkey surge protect toy awesome output elbow", salt);
         System.out.println(seed);
 
 
-        ExtendedPrivateKey rootKey = ExtendedPrivateKey.fromSeed(fromHex(seed), Bitcoin.MAIN_NET);
+        ExtendedPrivateKey rootKey = ExtendedPrivateKey.fromSeed(hexStringToByteArray(seed), Bitcoin.MAIN_NET);
         // 3. get child private key deriving from master/root key
-        ExtendedPrivateKey childPrivateKey = rootKey.derive(addressIndex, AddressIndex.DERIVATION);
+        ExtendedPrivateKey childPrivateKey = rootKey.derive(ethAddressIndex, AddressIndex.DERIVATION);
 
         // 4. get key pair
         byte[] privateKeyBytes = childPrivateKey.getKey(); //child private key
         ECKeyPair keyPair = ECKeyPair.create(privateKeyBytes);
-
+        walletFile = Wallet.createLight(password, keyPair);
         List<String> returnList = EthAddress(childPrivateKey, keyPair);
+
+        childPrivateKey = rootKey.derive(btcAddressIndex, AddressIndex.DERIVATION);
         bitcoinAddress(childPrivateKey);
+
         return returnList;
+
     }
+
 
     /**
      * generate ETH privatekey, publickey and address.
+     *
      * @param childPrivateKey
      * @param keyPair
      */
-    private static List<String> EthAddress(ExtendedPrivateKey childPrivateKey, ECKeyPair keyPair){
+    private static List<String> EthAddress(ExtendedPrivateKey childPrivateKey, ECKeyPair keyPair) {
         String privateKey = childPrivateKey.getPrivateKey();
         String publicKey = childPrivateKey.neuter().getPublicKey();
         String address = Keys.getAddress(keyPair);
@@ -171,9 +182,10 @@ public class Main {
 
     /**
      * generate bitcoin privatekey, publickey and address.
+     *
      * @param childPrivateKey
      */
-    private static void bitcoinAddress(ExtendedPrivateKey childPrivateKey){
+    private static void bitcoinAddress(ExtendedPrivateKey childPrivateKey) {
         // 获取比特币私钥
         String privateKey = childPrivateKey.getPrivateKey();
         // 加80前缀和01后缀
@@ -225,7 +237,7 @@ public class Main {
         return String.valueOf(Hex.encodeHex(f.generateSecret(spec).getEncoded()));
     }
 
-    private static void generateSegwitAddress(String address){
+    private static void generateSegwitAddress(String address) {
         byte[] decoded = Utils.parseAsHexOrBase58(address);
         // We should throw off header byte that is 0 for Bitcoin (Main)
         byte[] pureBytes = new byte[20];
@@ -249,14 +261,14 @@ public class Main {
         System.out.println("segwit address:" + segwitAddress);
     }
 
-    private static byte[] fromHex(String hex) {
+    /*private static byte[] fromHex(String hex) {
         byte[] binary = new byte[hex.length() / 2];
         for (int i = 0; i < binary.length; i++) {
             binary[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
         }
         return binary;
 
-    }
+    }*/
 
     private static byte[] getUtf8Bytes(final String str) {
         return toRuntime(new CheckedExceptionToRuntime.Func<byte[]>() {
@@ -297,6 +309,11 @@ public class Main {
         }
         ks.protectContent(ksContent, ksPwd);
         ks.getContent(ksPwd);
+    }
+
+    public static void sendTransaction(String fromAddress, String toAddress, BigDecimal amount,
+                                       String password, WalletFile walletfile) throws Exception {
+        new SendTransaction().sendTransaction(fromAddress, toAddress, amount, password, walletfile);
     }
 }
 
