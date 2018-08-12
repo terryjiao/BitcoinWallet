@@ -75,7 +75,6 @@ public class Main {
 
         //generate sha-256 from entropy
         String encodeStr = "";
-
         byte[] hash = Sha256.sha256(hexStringToByteArray(entropy));
         encodeStr = String.valueOf(Hex.encodeHex(hash));
         System.out.println(encodeStr);
@@ -136,7 +135,7 @@ public class Main {
         // 2. calculate seed from mnemonics , then get master/root key ; Note that the bip39 passphrase we set "" for common
         String seed;
         String salt = "mnemonic";
-        seed = getSeed("head budget daring umbrella misery monkey surge protect toy awesome output elbow", salt);
+        seed = getSeed(mnemonic, salt);
         System.out.println(seed);
 
 

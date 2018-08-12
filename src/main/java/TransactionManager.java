@@ -1,3 +1,4 @@
+import io.github.novacrypto.bip32.networks.Bitcoin;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Function;
@@ -17,20 +18,13 @@ public class TransactionManager {
     /**
      * ETH 转账离线签名
      *
-     * @param to
-     *     转入的钱包地址
-     * @param nonce
-     *     以太坊nonce
-     * @param gasPrice
-     *     gasPrice
-     * @param gasLimit
-     *     gasLimit
-     * @param amount
-     *     转账的eth数量
-     * @param walletfile
-     *     钱包对象
-     * @param password
-     *     密码
+     * @param to         转入的钱包地址
+     * @param nonce      以太坊nonce
+     * @param gasPrice   gasPrice
+     * @param gasLimit   gasLimit
+     * @param amount     转账的eth数量
+     * @param walletfile 钱包对象
+     * @param password   密码
      * @return 签名data
      */
     public String signedEthTransactionData(String to, BigInteger nonce, BigInteger gasPrice,
