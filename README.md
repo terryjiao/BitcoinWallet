@@ -8,7 +8,7 @@ Generating ETH key pairs and address from mnemonic.
 
 ### 1. From entropy to mnemonic
 
-####1. Generating 128 digits random entropy
+#### 1. Generating 128 digits random entropy
 ```java
 UUID uuid = UUID.randomUUID();
 String[] digits = uuid.toString().split("\\-");
@@ -18,7 +18,7 @@ for (String digit : digits) {
 }
 ```
 
-####2. Doing SHA256 to entropy for checksum, append first 4 bits to the end of entropy
+#### 2. Doing SHA256 to entropy for checksum, append first 4 bits to the end of entropy
 ```java
 //generate sha-256 from entropy
 String encodeStr = "";
@@ -32,14 +32,14 @@ for (int i = 0; i < new_entropy.length(); i++) {
     bin_entropy += dict[Integer.parseInt(new_entropy.substring(i, i + 1), 16)];
 }
 ```
-####3. Segment 132 bits entropy into 11 bits long parts
+#### 3. Segment 132 bits entropy into 11 bits long parts
 ```java
 String[] segments = new String[12];
 for (int i = 0; i <= 11; i++) {
     segments[i] = bin_entropy.substring(i * 11, (i + 1) * 11);
 }
 ```
-####4. Generating mnemonic from dictionary
+#### 4. Generating mnemonic from dictionary
 ```java
 mnemonic += wordlist[Integer.valueOf(segments[0], 2)];
 for (int j = 1; j < segments.length; j++) {
